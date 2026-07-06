@@ -1,0 +1,19 @@
+# Build outputs
+dist/
+build/
+bin/
+*.exe
+*.dmg
+*.zip
+*.tar
+*.tar.gz
+
+# Local state
+.DS_Store
+*.log
+logs/
+tmp/
+
+# IDE
+.idea/
+.vscode/
