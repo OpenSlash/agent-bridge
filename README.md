@@ -20,3 +20,7 @@ go test ./...
 ```go
 module github.com/OpenSlash/agent-bridge
 ```
+
+## License
+
+Agent Bridge is licensed under the Apache License, Version 2.0. See `LICENSE`.
