@@ -53,9 +53,10 @@ func (s *Service) applySessionAction(sessionID, action string) error {
 
 func (s *Service) executeSessionAction(req protocol.SessionActionPayload) protocol.SessionActionResultPayload {
 	resp := protocol.SessionActionResultPayload{
-		RequestID: strings.TrimSpace(req.RequestID),
-		SessionID: strings.TrimSpace(req.SessionID),
-		Action:    strings.TrimSpace(req.Action),
+		RequestID:  strings.TrimSpace(req.RequestID),
+		SessionID:  strings.TrimSpace(req.SessionID),
+		Action:     strings.TrimSpace(req.Action),
+		OccurredAt: time.Now().UnixMilli(),
 	}
 
 	if !s.cfg.Management {
@@ -72,7 +73,7 @@ func (s *Service) executeSessionAction(req protocol.SessionActionPayload) protoc
 		resp.Error = "Session was not found or has already ended"
 		return resp
 	}
-	if target.getThinking() {
+	if target.getThinking() && resp.Action != protocol.SessionActionInterrupt && resp.Action != protocol.SessionActionStop {
 		switch resp.Action {
 		case protocol.SessionActionDelete:
 			resp.Error = "The session is still thinking and cannot be deleted"
@@ -84,21 +85,53 @@ func (s *Service) executeSessionAction(req protocol.SessionActionPayload) protoc
 
 	targetCWD := target.getCurrentDir()
 	stopReason := "session-action"
+	transitionState := ""
 	lifecycleState := ""
 	switch resp.Action {
+	case protocol.SessionActionInterrupt:
+		if !target.getThinking() {
+			resp.Error = "The session has no active turn to interrupt"
+			return resp
+		}
+		if err := target.sendSessionLifecycleEventWithAction(
+			protocol.SessionLifecycleInterrupting,
+			protocol.SessionLifecycleActive,
+			resp.Action,
+			resp.RequestID,
+			"interrupt-requested",
+		); err != nil {
+			applog.Errorf("[Remote] send session lifecycle failed: session=%s state=%s err=%v", resp.SessionID, protocol.SessionLifecycleInterrupting, err)
+		}
+		if err := target.Interrupt(); err != nil {
+			resp.Error = err.Error()
+			return resp
+		}
+		resp.LifecycleState = protocol.SessionLifecycleInterrupting
+		return resp
 	case protocol.SessionActionPause:
 		stopReason = "paused-by-manager"
+		transitionState = protocol.SessionLifecyclePausing
 		lifecycleState = protocol.SessionLifecyclePaused
+	case protocol.SessionActionStop:
+		stopReason = "stopped-by-manager"
+		transitionState = protocol.SessionLifecycleStopping
+		lifecycleState = protocol.SessionLifecycleStopped
 	case protocol.SessionActionDelete:
 		stopReason = "deleted-by-manager"
+		transitionState = protocol.SessionLifecycleDeleting
 		lifecycleState = protocol.SessionLifecycleDeleted
 	default:
 		resp.Error = fmt.Sprintf("Unsupported session action: %s", resp.Action)
 		return resp
 	}
 
+	if transitionState != "" {
+		if err := target.sendSessionLifecycleEventWithAction(transitionState, protocol.SessionLifecycleActive, resp.Action, resp.RequestID, stopReason); err != nil {
+			applog.Errorf("[Remote] send session lifecycle failed: session=%s state=%s err=%v", resp.SessionID, transitionState, err)
+		}
+	}
 	if lifecycleState != "" {
-		if err := target.sendSessionLifecycleEvent(lifecycleState, stopReason); err != nil {
+		if err := target.sendSessionLifecycleEventWithAction(lifecycleState, transitionState, resp.Action, resp.RequestID, stopReason); err != nil {
 			applog.Errorf("[Remote] send session lifecycle failed: session=%s state=%s err=%v", resp.SessionID, lifecycleState, err)
 		}
 	}
@@ -109,7 +142,7 @@ func (s *Service) executeSessionAction(req protocol.SessionActionPayload) protoc
 	}
 	s.detachChildBySessionID(resp.SessionID)
 
-	if resp.Action == protocol.SessionActionPause {
+	if resp.Action == protocol.SessionActionPause || resp.Action == protocol.SessionActionStop {
 		if err := s.markSessionStopReason(resp.SessionID, stopReason); err != nil {
 			applog.Errorf("[Remote] mark session stop reason failed: session=%s reason=%s err=%v", resp.SessionID, stopReason, err)
 		}
@@ -121,6 +154,7 @@ func (s *Service) executeSessionAction(req protocol.SessionActionPayload) protoc
 			return resp
 		}
 	}
+	resp.LifecycleState = lifecycleState
 
 	return resp
 }
@@ -144,6 +178,10 @@ func (s *Service) findChildBySessionID(sessionID string) *Service {
 }
 
 func (s *Service) sendSessionLifecycleEvent(state, reason string) error {
+	return s.sendSessionLifecycleEventWithAction(state, "", "", "", reason)
+}
+
+func (s *Service) sendSessionLifecycleEventWithAction(state, previousState, action, requestID, reason string) error {
 	sessionID := strings.TrimSpace(s.SessionID())
 	if sessionID == "" {
 		return nil
@@ -152,9 +190,12 @@ func (s *Service) sendSessionLifecycleEvent(state, reason string) error {
 		Type:      protocol.TypeSessionLifecycle,
 		SessionID: sessionID,
 		Payload: protocol.SessionLifecyclePayload{
-			State:      strings.TrimSpace(state),
-			Reason:     strings.TrimSpace(reason),
-			OccurredAt: time.Now().UnixMilli(),
+			State:         strings.TrimSpace(state),
+			PreviousState: strings.TrimSpace(previousState),
+			Action:        strings.TrimSpace(action),
+			RequestID:     strings.TrimSpace(requestID),
+			Reason:        strings.TrimSpace(reason),
+			OccurredAt:    time.Now().UnixMilli(),
 		},
 	})
 }

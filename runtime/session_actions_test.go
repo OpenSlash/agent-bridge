@@ -60,6 +60,67 @@ func TestExecuteSessionActionRejectsThinkingChild(t *testing.T) {
 	}
 }
 
+func TestExecuteSessionActionInterruptsThinkingChild(t *testing.T) {
+	adapter := &stubRuntimeAdapter{}
+	parent := &Service{}
+	parent.cfg.Management = true
+	child := &Service{
+		running:    true,
+		sessionID:  "session-interrupt",
+		thinking:   true,
+		turnActive: true,
+		adapter:    adapter,
+		done:       make(chan struct{}),
+	}
+	parent.children = []*Service{child}
+
+	resp := parent.executeSessionAction(protocol.SessionActionPayload{
+		RequestID: "action-1",
+		SessionID: "session-interrupt",
+		Action:    protocol.SessionActionInterrupt,
+	})
+
+	if resp.Error != "" {
+		t.Fatalf("expected interrupt to succeed, got error %q", resp.Error)
+	}
+	if !adapter.requestInterruptCalled {
+		t.Fatal("expected runtime adapter interrupt to be called")
+	}
+	if resp.LifecycleState != protocol.SessionLifecycleInterrupting {
+		t.Fatalf("expected interrupting lifecycle state, got %q", resp.LifecycleState)
+	}
+	if parent.findChildBySessionID("session-interrupt") != child {
+		t.Fatal("interrupt must keep the child session attached")
+	}
+}
+
+func TestExecuteSessionActionForceStopsThinkingChild(t *testing.T) {
+	parent := &Service{}
+	parent.cfg.Management = true
+	child := &Service{
+		running:   true,
+		sessionID: "session-stop",
+		thinking:  true,
+		done:      make(chan struct{}),
+	}
+	parent.children = []*Service{child}
+
+	resp := parent.executeSessionAction(protocol.SessionActionPayload{
+		SessionID: "session-stop",
+		Action:    protocol.SessionActionStop,
+	})
+
+	if resp.Error != "" {
+		t.Fatalf("expected stop to succeed, got error %q", resp.Error)
+	}
+	if resp.LifecycleState != protocol.SessionLifecycleStopped {
+		t.Fatalf("expected stopped lifecycle state, got %q", resp.LifecycleState)
+	}
+	if parent.findChildBySessionID("session-stop") != nil {
+		t.Fatal("stopped child must be detached")
+	}
+}
+
 func TestExecuteSessionActionDeletesTranscript(t *testing.T) {
 	homeDir := t.TempDir()
 	t.Setenv("HOME", homeDir)

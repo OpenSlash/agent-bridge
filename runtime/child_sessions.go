@@ -9,6 +9,68 @@ import (
 	"github.com/OpenSlash/agent-bridge/protocol"
 )
 
+type createSessionAttempt struct {
+	done    chan struct{}
+	payload protocol.SessionCreatedPayload
+}
+
+func createSessionKey(req protocol.CreateSessionPayload) string {
+	if key := strings.TrimSpace(req.IdempotencyKey); key != "" {
+		return key
+	}
+	return strings.TrimSpace(req.RequestID)
+}
+
+func (s *Service) beginCreateSession(req protocol.CreateSessionPayload) (protocol.SessionCreatedPayload, bool) {
+	key := createSessionKey(req)
+	if key == "" {
+		return protocol.SessionCreatedPayload{}, false
+	}
+
+	s.mu.Lock()
+	if s.createSessionAttempts == nil {
+		s.createSessionAttempts = make(map[string]*createSessionAttempt)
+	}
+	if attempt := s.createSessionAttempts[key]; attempt != nil {
+		done := attempt.done
+		s.mu.Unlock()
+		<-done
+		s.mu.Lock()
+		payload := attempt.payload
+		s.mu.Unlock()
+		payload.RequestID = strings.TrimSpace(req.RequestID)
+		payload.IdempotencyKey = key
+		return payload, true
+	}
+	s.createSessionAttempts[key] = &createSessionAttempt{done: make(chan struct{})}
+	s.mu.Unlock()
+	return protocol.SessionCreatedPayload{}, false
+}
+
+func (s *Service) completeCreateSession(parentSessionID string, req protocol.CreateSessionPayload, payload protocol.SessionCreatedPayload) {
+	payload.RequestID = strings.TrimSpace(req.RequestID)
+	payload.IdempotencyKey = createSessionKey(req)
+	if key := createSessionKey(req); key != "" {
+		s.mu.Lock()
+		if attempt := s.createSessionAttempts[key]; attempt != nil {
+			attempt.payload = payload
+			close(attempt.done)
+		}
+		s.mu.Unlock()
+	}
+	s.writeSessionCreated(parentSessionID, payload)
+}
+
+func (s *Service) writeSessionCreated(parentSessionID string, payload protocol.SessionCreatedPayload) {
+	if err := s.writeJSON(protocol.Message{
+		Type:      protocol.TypeSessionCreated,
+		SessionID: parentSessionID,
+		Payload:   payload,
+	}); err != nil {
+		applog.Errorf("[Remote] WS write session-created error: %v", err)
+	}
+}
+
 func (s *Service) addChild(child *Service) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -26,6 +88,10 @@ func (s *Service) notifyChildStarted(child *Service, cfg Config) {
 }
 
 func (s *Service) handleCreateSession(parentSessionID string, req protocol.CreateSessionPayload) {
+	if cached, duplicate := s.beginCreateSession(req); duplicate {
+		s.writeSessionCreated(parentSessionID, cached)
+		return
+	}
 	applog.Info.Printf(
 		"[Remote] create-session requested: parent=%s cwd=%s runtime=%s model=%s permission=%s sandbox=%s resume=%s runtime_resume=%s",
 		parentSessionID,
@@ -44,31 +110,17 @@ func (s *Service) handleCreateSession(parentSessionID string, req protocol.Creat
 	workingDir, err := resolveDirectoryWithinUserHome(req.WorkingDir, "", true)
 	if err != nil {
 		payload := protocol.SessionCreatedPayload{
-			RequestID: req.RequestID,
-			Error:     err.Error(),
+			Error: err.Error(),
 		}
-		if writeErr := s.writeJSON(protocol.Message{
-			Type:      protocol.TypeSessionCreated,
-			SessionID: parentSessionID,
-			Payload:   payload,
-		}); writeErr != nil {
-			applog.Errorf("[Remote] WS write session-created error: %v", writeErr)
-		}
+		s.completeCreateSession(parentSessionID, req, payload)
 		return
 	}
 	childCfg.WorkingDir = workingDir
 	if requestedCommand, err := commandForRequestedRuntime(req.Runtime, childCfg); err != nil {
 		payload := protocol.SessionCreatedPayload{
-			RequestID: req.RequestID,
-			Error:     err.Error(),
+			Error: err.Error(),
 		}
-		if writeErr := s.writeJSON(protocol.Message{
-			Type:      protocol.TypeSessionCreated,
-			SessionID: parentSessionID,
-			Payload:   payload,
-		}); writeErr != nil {
-			applog.Errorf("[Remote] WS write session-created error: %v", writeErr)
-		}
+		s.completeCreateSession(parentSessionID, req, payload)
 		return
 	} else if requestedCommand != "" {
 		childCfg.Command = requestedCommand
@@ -94,10 +146,14 @@ func (s *Service) handleCreateSession(parentSessionID string, req protocol.Creat
 		childCfg.RuntimeSessionID = req.ResumeRuntimeSessionID
 		childCfg.Resume = true
 	}
-
-	payload := protocol.SessionCreatedPayload{
-		RequestID: req.RequestID,
+	resolvedAttachments, err := resolveCreateSessionAttachments(req.Attachments)
+	if err != nil {
+		payload := protocol.SessionCreatedPayload{Error: err.Error()}
+		s.completeCreateSession(parentSessionID, req, payload)
+		return
 	}
+
+	payload := protocol.SessionCreatedPayload{}
 
 	child := NewService()
 	child.SetAutoReconnectEnabled(s.AutoReconnectEnabled())
@@ -112,6 +168,16 @@ func (s *Service) handleCreateSession(parentSessionID string, req protocol.Creat
 		)
 	} else {
 		payload.SessionID = sessionID
+		initialInput := buildInitialInputForRuntime(detectRuntime(childCfg.Command), req.InitialPrompt, resolvedAttachments)
+		if initialInput != "" {
+			if inputErr := child.SendInput(initialInput); inputErr != nil {
+				_ = child.StopWithReason("initial-prompt-failed")
+				payload.SessionID = ""
+				payload.Error = fmt.Sprintf("failed to submit initial prompt: %v", inputErr)
+				s.completeCreateSession(parentSessionID, req, payload)
+				return
+			}
+		}
 		s.addChild(child)
 		childCfg.SessionID = sessionID
 		if currentDir := strings.TrimSpace(child.CurrentDir()); currentDir != "" {
@@ -133,13 +199,7 @@ func (s *Service) handleCreateSession(parentSessionID string, req protocol.Creat
 		)
 	}
 
-	if writeErr := s.writeJSON(protocol.Message{
-		Type:      protocol.TypeSessionCreated,
-		SessionID: parentSessionID,
-		Payload:   payload,
-	}); writeErr != nil {
-		applog.Errorf("[Remote] WS write session-created error: %v", writeErr)
-	}
+	s.completeCreateSession(parentSessionID, req, payload)
 }
 
 func (s *Service) startChildProxy(cfg *Config) (string, error) {

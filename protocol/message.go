@@ -75,14 +75,24 @@ const (
 
 // 会话管理动作
 const (
-	SessionActionPause  = "pause"
-	SessionActionDelete = "delete"
+	SessionActionInterrupt = "interrupt"
+	SessionActionPause     = "pause"
+	SessionActionStop      = "stop"
+	SessionActionDelete    = "delete"
 )
 
 // 会话生命周期状态
 const (
+	SessionLifecycleStarting     = "starting"
+	SessionLifecycleActive       = "active"
+	SessionLifecycleInterrupting = "interrupting"
+	SessionLifecyclePausing      = "pausing"
 	SessionLifecyclePaused       = "paused"
+	SessionLifecycleStopping     = "stopping"
+	SessionLifecycleStopped      = "stopped"
+	SessionLifecycleDeleting     = "deleting"
 	SessionLifecycleDeleted      = "deleted"
+	SessionLifecycleFailed       = "failed"
 	SessionLifecycleReconnecting = "reconnecting"
 	SessionLifecycleResumed      = "resumed"
 )
@@ -274,43 +284,62 @@ type SessionConfigPayload struct {
 
 // CreateSessionPayload 创建新代理会话（手机→电脑）
 type CreateSessionPayload struct {
-	RequestID              string `json:"request_id,omitempty"`
-	WorkingDir             string `json:"working_dir,omitempty"`
-	Runtime                string `json:"runtime,omitempty"`
-	Model                  string `json:"model,omitempty"`
-	PermissionMode         string `json:"permission_mode,omitempty"`
-	SandboxMode            string `json:"sandbox_mode,omitempty"`
-	ResumeSessionID        string `json:"resume_session_id,omitempty"`
-	ResumeRuntimeSessionID string `json:"resume_runtime_session_id,omitempty"`
+	Version                int                          `json:"version,omitempty"`
+	RequestID              string                       `json:"request_id,omitempty"`
+	IdempotencyKey         string                       `json:"idempotency_key,omitempty"`
+	WorkingDir             string                       `json:"working_dir,omitempty"`
+	Runtime                string                       `json:"runtime,omitempty"`
+	Model                  string                       `json:"model,omitempty"`
+	PermissionMode         string                       `json:"permission_mode,omitempty"`
+	SandboxMode            string                       `json:"sandbox_mode,omitempty"`
+	ResumeSessionID        string                       `json:"resume_session_id,omitempty"`
+	ResumeRuntimeSessionID string                       `json:"resume_runtime_session_id,omitempty"`
+	InitialPrompt          string                       `json:"initial_prompt,omitempty"`
+	Attachments            []CreateSessionAttachmentRef `json:"attachments,omitempty"`
+}
+
+type CreateSessionAttachmentRef struct {
+	ID       string `json:"id,omitempty"`
+	Name     string `json:"name,omitempty"`
+	MIMEType string `json:"mime_type,omitempty"`
+	ByteSize int64  `json:"byte_size,omitempty"`
+	SHA256   string `json:"sha256,omitempty"`
+	BlobRef  string `json:"blob_ref,omitempty"`
 }
 
 // SessionCreatedPayload 新代理会话创建结果（电脑→手机）
 type SessionCreatedPayload struct {
-	RequestID string `json:"request_id,omitempty"`
-	SessionID string `json:"session_id,omitempty"`
-	Error     string `json:"error,omitempty"`
+	RequestID      string `json:"request_id,omitempty"`
+	IdempotencyKey string `json:"idempotency_key,omitempty"`
+	SessionID      string `json:"session_id,omitempty"`
+	Error          string `json:"error,omitempty"`
 }
 
 // SessionActionPayload 会话管理动作（手机→电脑）
 type SessionActionPayload struct {
 	RequestID string `json:"request_id,omitempty"`
 	SessionID string `json:"session_id,omitempty"`
-	Action    string `json:"action,omitempty"` // pause / delete
+	Action    string `json:"action,omitempty"` // interrupt / pause / stop / delete
 }
 
 // SessionActionResultPayload 会话管理动作结果（电脑→手机）
 type SessionActionResultPayload struct {
-	RequestID string `json:"request_id,omitempty"`
-	SessionID string `json:"session_id,omitempty"`
-	Action    string `json:"action,omitempty"`
-	Error     string `json:"error,omitempty"`
+	RequestID      string `json:"request_id,omitempty"`
+	SessionID      string `json:"session_id,omitempty"`
+	Action         string `json:"action,omitempty"`
+	LifecycleState string `json:"lifecycle_state,omitempty"`
+	OccurredAt     int64  `json:"occurred_at,omitempty"`
+	Error          string `json:"error,omitempty"`
 }
 
 // SessionLifecyclePayload 会话生命周期事件（电脑→手机）
 type SessionLifecyclePayload struct {
-	State      string `json:"state,omitempty"`
-	Reason     string `json:"reason,omitempty"`
-	OccurredAt int64  `json:"occurred_at,omitempty"`
+	State         string `json:"state,omitempty"`
+	PreviousState string `json:"previous_state,omitempty"`
+	Action        string `json:"action,omitempty"`
+	RequestID     string `json:"request_id,omitempty"`
+	Reason        string `json:"reason,omitempty"`
+	OccurredAt    int64  `json:"occurred_at,omitempty"`
 }
 
 // ListDirPayload 目录浏览请求（手机→电脑）

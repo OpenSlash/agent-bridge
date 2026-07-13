@@ -137,6 +137,7 @@ type Service struct {
 	updatedToolInputs                 map[string]string
 	codexAppServerURL                 string
 	children                          []*Service
+	createSessionAttempts             map[string]*createSessionAttempt
 	autoReconnect                     bool
 	reconnectAttempt                  *reconnectAttempt
 	rpcSeq                            int64
