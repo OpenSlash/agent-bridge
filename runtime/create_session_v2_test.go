@@ -1,6 +1,7 @@
 package remote
 
 import (
+	"fmt"
 	"testing"
 	"time"
 
@@ -63,4 +64,45 @@ func TestBeginCreateSessionWaitsForOriginalResult(t *testing.T) {
 	case <-time.After(time.Second):
 		t.Fatal("duplicate request did not receive the original result")
 	}
+}
+
+func TestBeginCreateSessionPrunesExpiredAndOldestCompletedAttempts(t *testing.T) {
+	service := NewService()
+	now := time.Now()
+	service.createSessionAttempts = map[string]*createSessionAttempt{
+		"expired": {
+			done:        closedTestChannel(),
+			completedAt: now.Add(-createSessionAttemptTTL),
+		},
+		"recent": {
+			done:        closedTestChannel(),
+			completedAt: now.Add(-time.Minute),
+		},
+	}
+	for index := 0; index < maxCreateSessionAttempts-1; index++ {
+		service.createSessionAttempts[fmt.Sprintf("completed-%03d", index)] = &createSessionAttempt{
+			done:        closedTestChannel(),
+			completedAt: now.Add(-time.Duration(index+2) * time.Minute),
+		}
+	}
+
+	service.mu.Lock()
+	service.pruneCreateSessionAttemptsLocked(now)
+	service.mu.Unlock()
+
+	if _, ok := service.createSessionAttempts["expired"]; ok {
+		t.Fatal("expected expired attempt to be removed")
+	}
+	if len(service.createSessionAttempts) >= maxCreateSessionAttempts {
+		t.Fatalf("expected cache below capacity, got %d", len(service.createSessionAttempts))
+	}
+	if _, ok := service.createSessionAttempts[fmt.Sprintf("completed-%03d", maxCreateSessionAttempts-2)]; ok {
+		t.Fatal("expected oldest completed attempt to be evicted")
+	}
+}
+
+func closedTestChannel() chan struct{} {
+	done := make(chan struct{})
+	close(done)
+	return done
 }

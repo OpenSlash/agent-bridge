@@ -138,6 +138,7 @@ type Service struct {
 	codexAppServerURL                 string
 	children                          []*Service
 	createSessionAttempts             map[string]*createSessionAttempt
+	temporaryAttachmentDirs           []string
 	autoReconnect                     bool
 	reconnectAttempt                  *reconnectAttempt
 	rpcSeq                            int64
@@ -628,6 +629,7 @@ func (s *Service) StopWithReason(reason string) error {
 		for _, child := range children {
 			_ = child.Stop()
 		}
+		s.cleanupTemporaryCreateSessionAttachments()
 		return nil
 	}
 	s.running = false
@@ -721,6 +723,7 @@ func (s *Service) StopWithReason(reason string) error {
 	for _, child := range children {
 		_ = child.Stop()
 	}
+	s.cleanupTemporaryCreateSessionAttachments()
 	return nil
 }
 

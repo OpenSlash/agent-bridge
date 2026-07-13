@@ -4,15 +4,23 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/OpenSlash/agent-bridge/internal/applog"
 	"github.com/OpenSlash/agent-bridge/protocol"
 )
 
 type createSessionAttempt struct {
-	done    chan struct{}
-	payload protocol.SessionCreatedPayload
+	done        chan struct{}
+	payload     protocol.SessionCreatedPayload
+	createdAt   time.Time
+	completedAt time.Time
 }
+
+const (
+	createSessionAttemptTTL  = 24 * time.Hour
+	maxCreateSessionAttempts = 256
+)
 
 func createSessionKey(req protocol.CreateSessionPayload) string {
 	if key := strings.TrimSpace(req.IdempotencyKey); key != "" {
@@ -31,6 +39,8 @@ func (s *Service) beginCreateSession(req protocol.CreateSessionPayload) (protoco
 	if s.createSessionAttempts == nil {
 		s.createSessionAttempts = make(map[string]*createSessionAttempt)
 	}
+	now := time.Now()
+	s.pruneCreateSessionAttemptsLocked(now)
 	if attempt := s.createSessionAttempts[key]; attempt != nil {
 		done := attempt.done
 		s.mu.Unlock()
@@ -42,9 +52,34 @@ func (s *Service) beginCreateSession(req protocol.CreateSessionPayload) (protoco
 		payload.IdempotencyKey = key
 		return payload, true
 	}
-	s.createSessionAttempts[key] = &createSessionAttempt{done: make(chan struct{})}
+	s.createSessionAttempts[key] = &createSessionAttempt{done: make(chan struct{}), createdAt: now}
 	s.mu.Unlock()
 	return protocol.SessionCreatedPayload{}, false
+}
+
+func (s *Service) pruneCreateSessionAttemptsLocked(now time.Time) {
+	for key, attempt := range s.createSessionAttempts {
+		if attempt == nil || (!attempt.completedAt.IsZero() && now.Sub(attempt.completedAt) >= createSessionAttemptTTL) {
+			delete(s.createSessionAttempts, key)
+		}
+	}
+	for len(s.createSessionAttempts) >= maxCreateSessionAttempts {
+		oldestKey := ""
+		var oldestAt time.Time
+		for key, attempt := range s.createSessionAttempts {
+			if attempt == nil || attempt.completedAt.IsZero() {
+				continue
+			}
+			if oldestKey == "" || attempt.completedAt.Before(oldestAt) {
+				oldestKey = key
+				oldestAt = attempt.completedAt
+			}
+		}
+		if oldestKey == "" {
+			return
+		}
+		delete(s.createSessionAttempts, oldestKey)
+	}
 }
 
 func (s *Service) completeCreateSession(parentSessionID string, req protocol.CreateSessionPayload, payload protocol.SessionCreatedPayload) {
@@ -53,8 +88,11 @@ func (s *Service) completeCreateSession(parentSessionID string, req protocol.Cre
 	if key := createSessionKey(req); key != "" {
 		s.mu.Lock()
 		if attempt := s.createSessionAttempts[key]; attempt != nil {
-			attempt.payload = payload
-			close(attempt.done)
+			if attempt.completedAt.IsZero() {
+				attempt.payload = payload
+				attempt.completedAt = time.Now()
+				close(attempt.done)
+			}
 		}
 		s.mu.Unlock()
 	}
@@ -156,9 +194,11 @@ func (s *Service) handleCreateSession(parentSessionID string, req protocol.Creat
 	payload := protocol.SessionCreatedPayload{}
 
 	child := NewService()
+	child.setTemporaryCreateSessionAttachments(resolvedAttachments)
 	child.SetAutoReconnectEnabled(s.AutoReconnectEnabled())
 	sessionID, err := child.StartProxy(&childCfg)
 	if err != nil {
+		child.cleanupTemporaryCreateSessionAttachments()
 		payload.Error = err.Error()
 		applog.Errorf(
 			"[Remote] create-session failed: parent=%s resume=%s err=%v",

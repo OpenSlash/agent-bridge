@@ -9,6 +9,7 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/OpenSlash/agent-bridge/internal/applog"
 	"github.com/OpenSlash/agent-bridge/protocol"
 )
 
@@ -23,9 +24,10 @@ type resolvedCreateSessionAttachment struct {
 	Name     string
 	MIMEType string
 	Path     string
+	Dir      string
 }
 
-func resolveCreateSessionAttachments(refs []protocol.CreateSessionAttachmentRef) ([]resolvedCreateSessionAttachment, error) {
+func resolveCreateSessionAttachments(refs []protocol.CreateSessionAttachmentRef) (resolved []resolvedCreateSessionAttachment, resultErr error) {
 	if len(refs) == 0 {
 		return nil, nil
 	}
@@ -37,7 +39,16 @@ func resolveCreateSessionAttachments(refs []protocol.CreateSessionAttachmentRef)
 		return nil, fmt.Errorf("resolve attachment cache: %w", err)
 	}
 
-	resolved := make([]resolvedCreateSessionAttachment, 0, len(refs))
+	resolved = make([]resolvedCreateSessionAttachment, 0, len(refs))
+	createdDirs := make([]string, 0, len(refs))
+	defer func() {
+		if resultErr == nil {
+			return
+		}
+		for _, dir := range createdDirs {
+			_ = os.RemoveAll(dir)
+		}
+	}()
 	for index, ref := range refs {
 		mimeType := strings.ToLower(strings.TrimSpace(ref.MIMEType))
 		if !strings.HasPrefix(mimeType, "image/") {
@@ -70,13 +81,45 @@ func resolveCreateSessionAttachments(refs []protocol.CreateSessionAttachmentRef)
 		if err := os.MkdirAll(dir, 0o700); err != nil {
 			return nil, fmt.Errorf("create attachment directory: %w", err)
 		}
+		createdDirs = append(createdDirs, dir)
 		path := filepath.Join(dir, name)
 		if err := os.WriteFile(path, data, 0o600); err != nil {
 			return nil, fmt.Errorf("write attachment: %w", err)
 		}
-		resolved = append(resolved, resolvedCreateSessionAttachment{Name: name, MIMEType: mimeType, Path: path})
+		resolved = append(resolved, resolvedCreateSessionAttachment{Name: name, MIMEType: mimeType, Path: path, Dir: dir})
 	}
 	return resolved, nil
+}
+
+func (s *Service) setTemporaryCreateSessionAttachments(attachments []resolvedCreateSessionAttachment) {
+	dirs := make([]string, 0, len(attachments))
+	seen := make(map[string]struct{}, len(attachments))
+	for _, attachment := range attachments {
+		dir := strings.TrimSpace(attachment.Dir)
+		if dir == "" {
+			continue
+		}
+		if _, ok := seen[dir]; ok {
+			continue
+		}
+		seen[dir] = struct{}{}
+		dirs = append(dirs, dir)
+	}
+	s.mu.Lock()
+	s.temporaryAttachmentDirs = dirs
+	s.mu.Unlock()
+}
+
+func (s *Service) cleanupTemporaryCreateSessionAttachments() {
+	s.mu.Lock()
+	dirs := append([]string(nil), s.temporaryAttachmentDirs...)
+	s.temporaryAttachmentDirs = nil
+	s.mu.Unlock()
+	for _, dir := range dirs {
+		if err := os.RemoveAll(dir); err != nil {
+			applog.Errorf("[Remote] remove temporary attachment directory failed: dir=%s err=%v", dir, err)
+		}
+	}
 }
 
 func decodeInlineAttachment(raw, expectedMIME string) ([]byte, error) {
