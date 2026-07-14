@@ -18,6 +18,29 @@ func TestCreateSessionKeyPrefersStableIdempotencyKey(t *testing.T) {
 	}
 }
 
+func TestResetChildSessionIdentityClearsManagementSessionForNewCreate(t *testing.T) {
+	cfg := Config{
+		SessionID:        "manager-host-id",
+		RuntimeSessionID: "manager-runtime-id",
+		Resume:           true,
+	}
+	resetChildSessionIdentity(&cfg, protocol.CreateSessionPayload{})
+	if cfg.SessionID != "" || cfg.RuntimeSessionID != "" || cfg.Resume {
+		t.Fatalf("new child retained parent identity: %+v", cfg)
+	}
+}
+
+func TestResetChildSessionIdentityPreservesExplicitResumeTarget(t *testing.T) {
+	cfg := Config{SessionID: "manager-host-id"}
+	resetChildSessionIdentity(&cfg, protocol.CreateSessionPayload{
+		ResumeSessionID:        "session-2",
+		ResumeRuntimeSessionID: "runtime-2",
+	})
+	if cfg.SessionID != "session-2" || cfg.RuntimeSessionID != "runtime-2" || !cfg.Resume {
+		t.Fatalf("resume target was not applied: %+v", cfg)
+	}
+}
+
 func TestBeginCreateSessionWaitsForOriginalResult(t *testing.T) {
 	service := NewService()
 	req := protocol.CreateSessionPayload{

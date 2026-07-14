@@ -145,6 +145,7 @@ func (s *Service) handleCreateSession(parentSessionID string, req protocol.Creat
 	childCfg := s.cfg
 	childCfg.Management = false
 	childCfg.HostID = s.sessionID
+	resetChildSessionIdentity(&childCfg, req)
 	workingDir, err := resolveDirectoryWithinUserHome(req.WorkingDir, "", true)
 	if err != nil {
 		payload := protocol.SessionCreatedPayload{
@@ -178,11 +179,6 @@ func (s *Service) handleCreateSession(parentSessionID string, req protocol.Creat
 	}
 	if req.SandboxMode != "" {
 		childCfg.SandboxMode = req.SandboxMode
-	}
-	if req.ResumeSessionID != "" {
-		childCfg.SessionID = req.ResumeSessionID
-		childCfg.RuntimeSessionID = req.ResumeRuntimeSessionID
-		childCfg.Resume = true
 	}
 	resolvedAttachments, err := resolveCreateSessionAttachments(req.Attachments)
 	if err != nil {
@@ -240,6 +236,20 @@ func (s *Service) handleCreateSession(parentSessionID string, req protocol.Creat
 	}
 
 	s.completeCreateSession(parentSessionID, req, payload)
+}
+
+func resetChildSessionIdentity(cfg *Config, req protocol.CreateSessionPayload) {
+	if cfg == nil {
+		return
+	}
+	cfg.SessionID = ""
+	cfg.RuntimeSessionID = ""
+	cfg.Resume = false
+	if resumeSessionID := strings.TrimSpace(req.ResumeSessionID); resumeSessionID != "" {
+		cfg.SessionID = resumeSessionID
+		cfg.RuntimeSessionID = strings.TrimSpace(req.ResumeRuntimeSessionID)
+		cfg.Resume = true
+	}
 }
 
 func (s *Service) startChildProxy(cfg *Config) (string, error) {
