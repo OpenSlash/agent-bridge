@@ -153,7 +153,8 @@ type TextPayload struct {
 
 // InputPayload 用户输入
 type InputPayload struct {
-	Data string `json:"data"` // 原始输入文本
+	Data        string                       `json:"data"` // 原始输入文本
+	Attachments []CreateSessionAttachmentRef `json:"attachments,omitempty"`
 }
 
 // ControlPayload 控制权切换
@@ -222,9 +223,10 @@ type RuntimeModelInfo struct {
 
 // RuntimeCapability 主机声明的运行时能力
 type RuntimeCapability struct {
-	ID     string             `json:"id"`
-	Title  string             `json:"title,omitempty"`
-	Models []RuntimeModelInfo `json:"models,omitempty"`
+	ID             string             `json:"id"`
+	Title          string             `json:"title,omitempty"`
+	Models         []RuntimeModelInfo `json:"models,omitempty"`
+	SupportsImages bool               `json:"supports_images,omitempty"`
 }
 
 // HostInfo 远程管理主机信息

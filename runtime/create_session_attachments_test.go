@@ -114,3 +114,49 @@ func TestStopRemovesTemporaryAttachmentDirectories(t *testing.T) {
 		t.Fatalf("expected attachment directory removed, stat err=%v", err)
 	}
 }
+
+func TestPrepareInputAttachmentsBuildsRuntimeInputAndTracksDirectory(t *testing.T) {
+	cacheDir := t.TempDir()
+	t.Setenv("XDG_CACHE_HOME", cacheDir)
+	t.Setenv("HOME", cacheDir)
+	data := []byte("session-image")
+	service := NewService()
+	service.runtime = runtimeCodex
+
+	input, err := service.prepareInputAttachments(protocol.InputPayload{
+		Data: "Review this image",
+		Attachments: []protocol.CreateSessionAttachmentRef{{
+			ID:       "turn-image",
+			Name:     "turn.png",
+			MIMEType: "image/png",
+			ByteSize: int64(len(data)),
+			SHA256:   fmt.Sprintf("%x", sha256.Sum256(data)),
+			BlobRef:  "data:image/png;base64," + base64.StdEncoding.EncodeToString(data),
+		}},
+	})
+	if err != nil {
+		t.Fatalf("prepare input attachments: %v", err)
+	}
+	if !strings.Contains(input, "Review this image") || !strings.Contains(input, "turn.png") {
+		t.Fatalf("expected prompt and attachment path, got %q", input)
+	}
+	service.mu.Lock()
+	tracked := append([]string(nil), service.temporaryAttachmentDirs...)
+	service.mu.Unlock()
+	if len(tracked) != 1 {
+		t.Fatalf("expected one tracked attachment directory, got %v", tracked)
+	}
+}
+
+func TestTemporaryAttachmentTrackingAccumulatesAcrossTurns(t *testing.T) {
+	service := NewService()
+	service.setTemporaryCreateSessionAttachments([]resolvedCreateSessionAttachment{{Dir: "/tmp/first"}})
+	service.setTemporaryCreateSessionAttachments([]resolvedCreateSessionAttachment{{Dir: "/tmp/second"}})
+	service.mu.Lock()
+	tracked := append([]string(nil), service.temporaryAttachmentDirs...)
+	service.temporaryAttachmentDirs = nil
+	service.mu.Unlock()
+	if len(tracked) != 2 || tracked[0] != "/tmp/first" || tracked[1] != "/tmp/second" {
+		t.Fatalf("expected attachment directories from both turns, got %v", tracked)
+	}
+}

@@ -93,21 +93,37 @@ func resolveCreateSessionAttachments(refs []protocol.CreateSessionAttachmentRef)
 
 func (s *Service) setTemporaryCreateSessionAttachments(attachments []resolvedCreateSessionAttachment) {
 	dirs := make([]string, 0, len(attachments))
-	seen := make(map[string]struct{}, len(attachments))
 	for _, attachment := range attachments {
 		dir := strings.TrimSpace(attachment.Dir)
 		if dir == "" {
 			continue
 		}
+		dirs = append(dirs, dir)
+	}
+	s.mu.Lock()
+	seen := make(map[string]struct{}, len(s.temporaryAttachmentDirs)+len(dirs))
+	merged := make([]string, 0, len(s.temporaryAttachmentDirs)+len(dirs))
+	for _, dir := range append(append([]string(nil), s.temporaryAttachmentDirs...), dirs...) {
 		if _, ok := seen[dir]; ok {
 			continue
 		}
 		seen[dir] = struct{}{}
-		dirs = append(dirs, dir)
+		merged = append(merged, dir)
 	}
-	s.mu.Lock()
-	s.temporaryAttachmentDirs = dirs
+	s.temporaryAttachmentDirs = merged
 	s.mu.Unlock()
+}
+
+func (s *Service) prepareInputAttachments(input protocol.InputPayload) (string, error) {
+	resolved, err := resolveCreateSessionAttachments(input.Attachments)
+	if err != nil {
+		return "", err
+	}
+	if len(resolved) == 0 {
+		return input.Data, nil
+	}
+	s.setTemporaryCreateSessionAttachments(resolved)
+	return buildInitialInputForRuntime(s.getRuntime(), input.Data, resolved), nil
 }
 
 func (s *Service) cleanupTemporaryCreateSessionAttachments() {

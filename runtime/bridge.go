@@ -47,8 +47,20 @@ func (s *Service) startBridge() {
 				}
 				var input protocol.InputPayload
 				if s.decodePayload(sessionID, msg.Type, msg.Payload, &input) == nil {
+					effectiveInput, attachmentErr := s.prepareInputAttachments(input)
+					if attachmentErr != nil {
+						applog.Errorf("[Remote] input attachment error: %v", attachmentErr)
+						_ = s.writeJSON(protocol.Message{
+							Type:      protocol.TypeError,
+							SessionID: sessionID,
+							Payload: protocol.ErrorPayload{
+								Message: stringsTrimRightNewlines(attachmentErr.Error()),
+							},
+						})
+						continue
+					}
 					if attachedInput := s.getAttachedInputHandler(); attachedInput != nil {
-						if err := attachedInput(input.Data); err != nil {
+						if err := attachedInput(effectiveInput); err != nil {
 							applog.Errorf("[Remote] attached input error: %v", err)
 							_ = s.writeJSON(protocol.Message{
 								Type:      protocol.TypeError,
@@ -69,7 +81,7 @@ func (s *Service) startBridge() {
 						}
 						continue
 					}
-					handled, handleErr := s.handleLocalSlashCommand(sessionID, input.Data, historyPusher)
+					handled, handleErr := s.handleLocalSlashCommand(sessionID, effectiveInput, historyPusher)
 					if handleErr != nil {
 						applog.Errorf("[Remote] local slash command error: %v", handleErr)
 						continue
@@ -77,7 +89,7 @@ func (s *Service) startBridge() {
 					if handled {
 						continue
 					}
-					if writeErr := s.writeUserMessage(input.Data); writeErr != nil {
+					if writeErr := s.writeUserMessage(effectiveInput); writeErr != nil {
 						applog.Errorf("[Remote] stdin write error: %v", writeErr)
 						_ = s.writeJSON(protocol.Message{
 							Type:      protocol.TypeText,

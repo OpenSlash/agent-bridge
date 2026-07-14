@@ -44,6 +44,9 @@ func TestRuntimeModelCatalogMatchesRuntime(t *testing.T) {
 	if catalog[1].ID != string(runtimeCodex) || len(catalog[1].Models) != 6 {
 		t.Fatalf("expected codex runtime catalog, got %#v", catalog[1])
 	}
+	if !catalog[0].SupportsImages || !catalog[1].SupportsImages {
+		t.Fatalf("expected both runtime adapters to support image input, got %#v", catalog)
+	}
 	if got := supportedModelsForRuntime(runtimeClaude); len(got) != 3 {
 		t.Fatalf("expected 3 claude models, got %v", got)
 	}

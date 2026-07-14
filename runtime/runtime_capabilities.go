@@ -54,9 +54,10 @@ func BuildRuntimeCatalog(options RuntimeCatalogOptions) []protocol.RuntimeCapabi
 	catalog := make([]protocol.RuntimeCapability, 0, len(runtimes))
 	for _, runtime := range runtimes {
 		catalog = append(catalog, protocol.RuntimeCapability{
-			ID:     string(runtime),
-			Title:  runtimeTitle(runtime),
-			Models: runtimeModelCatalogForRuntime(runtime),
+			ID:             string(runtime),
+			Title:          runtimeTitle(runtime),
+			Models:         runtimeModelCatalogForRuntime(runtime),
+			SupportsImages: true,
 		})
 	}
 	return catalog
