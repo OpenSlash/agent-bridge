@@ -78,6 +78,7 @@ func (s *Service) StartLocal(cfg *Config, sink func(protocol.Message) error) (st
 		ClaudeEnabled:    cfg.ClaudeEnabled,
 		CodexEnabled:     cfg.CodexEnabled,
 		RuntimeCatalog:   append([]protocol.RuntimeCapability(nil), cfg.RuntimeCatalog...),
+		HostReadiness:    cloneHostReadiness(cfg.HostReadiness),
 	}
 
 	cmd, stdinPipe, stdoutPipe, err := s.startCommand(cfg.SessionID, cwd, cfg.Model, cfg.PermissionMode, cfg.Resume)

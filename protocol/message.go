@@ -133,6 +133,7 @@ type RegisterPayload struct {
 	PermissionMode   string              `json:"permission_mode,omitempty"` // 当前权限模式
 	SandboxMode      string              `json:"sandbox_mode,omitempty"`    // 当前沙箱模式
 	RuntimeCatalog   []RuntimeCapability `json:"runtime_catalog,omitempty"`
+	HostReadiness    HostReadiness       `json:"host_readiness,omitempty"`
 }
 
 // RegisteredPayload 注册成功响应
@@ -172,6 +173,7 @@ type KeepalivePayload struct {
 	PermissionMode   string              `json:"permission_mode,omitempty"`    // 当前权限模式
 	SandboxMode      string              `json:"sandbox_mode,omitempty"`       // 当前沙箱模式
 	RuntimeCatalog   []RuntimeCapability `json:"runtime_catalog,omitempty"`
+	HostReadiness    HostReadiness       `json:"host_readiness,omitempty"`
 }
 
 // TurnStartPayload 回合开始
@@ -229,6 +231,22 @@ type RuntimeCapability struct {
 	SupportsImages bool               `json:"supports_images,omitempty"`
 }
 
+// HostReadinessIssue describes an actionable problem on a remote management host.
+type HostReadinessIssue struct {
+	Code          string `json:"code"`
+	Severity      string `json:"severity,omitempty"`
+	Message       string `json:"message,omitempty"`
+	RepairCommand string `json:"repair_command,omitempty"`
+	Blocking      bool   `json:"blocking,omitempty"`
+}
+
+// HostReadiness summarizes whether a management host can start new sessions.
+type HostReadiness struct {
+	State     string               `json:"state,omitempty"`
+	Issues    []HostReadinessIssue `json:"issues,omitempty"`
+	CheckedAt int64                `json:"checked_at,omitempty"`
+}
+
 // HostInfo 远程管理主机信息
 type HostInfo struct {
 	HostID         string              `json:"host_id"`
@@ -239,6 +257,7 @@ type HostInfo struct {
 	OS             string              `json:"os,omitempty"`
 	Version        string              `json:"version,omitempty"`
 	RuntimeCatalog []RuntimeCapability `json:"runtime_catalog,omitempty"`
+	HostReadiness  HostReadiness       `json:"host_readiness,omitempty"`
 }
 
 // HostsPayload 主机列表

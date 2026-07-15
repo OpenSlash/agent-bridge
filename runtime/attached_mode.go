@@ -88,6 +88,7 @@ func (s *Service) StartAttached(cfg *Config, handlers AttachedHandlers) (string,
 		ClaudeEnabled:    cfg.ClaudeEnabled,
 		CodexEnabled:     cfg.CodexEnabled,
 		RuntimeCatalog:   append([]protocol.RuntimeCapability(nil), cfg.RuntimeCatalog...),
+		HostReadiness:    cloneHostReadiness(cfg.HostReadiness),
 	}
 
 	if runtimeKind != runtimeCodex && strings.TrimSpace(cfg.RuntimeSessionID) == "" {

@@ -52,6 +52,7 @@ type Config struct {
 	ClaudeEnabled    bool
 	CodexEnabled     bool
 	RuntimeCatalog   []protocol.RuntimeCapability
+	HostReadiness    protocol.HostReadiness
 }
 
 type sdkControlRequest struct {
@@ -288,6 +289,7 @@ func (s *Service) Start(cfg *Config) (string, error) {
 		ClaudeEnabled:    cfg.ClaudeEnabled,
 		CodexEnabled:     cfg.CodexEnabled,
 		RuntimeCatalog:   append([]protocol.RuntimeCapability(nil), cfg.RuntimeCatalog...),
+		HostReadiness:    cloneHostReadiness(cfg.HostReadiness),
 	}
 
 	var (
@@ -418,6 +420,7 @@ func (s *Service) Start(cfg *Config) (string, error) {
 				}
 				return append([]protocol.RuntimeCapability(nil), cfg.RuntimeCatalog...)
 			}(),
+			HostReadiness: cloneHostReadiness(cfg.HostReadiness),
 		},
 	}
 	regData, _ := json.Marshal(regMsg)
@@ -759,6 +762,12 @@ func (s *Service) UpdateRuntimeSelection(claudeEnabled, codexEnabled bool, claud
 	s.cfg.ClaudeCommand = strings.TrimSpace(claudeCommand)
 	s.cfg.CodexCommand = strings.TrimSpace(codexCommand)
 	s.cfg.RuntimeCatalog = append([]protocol.RuntimeCapability(nil), runtimeCatalog...)
+}
+
+func (s *Service) UpdateHostReadiness(readiness protocol.HostReadiness) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.cfg.HostReadiness = cloneHostReadiness(readiness)
 }
 
 func (s *Service) SetChildStartedHook(hook func(*Service, Config)) {

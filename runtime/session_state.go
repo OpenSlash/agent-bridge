@@ -113,6 +113,7 @@ func (s *Service) sendCurrentKeepalive(sessionID string) error {
 			PermissionMode:   s.getCurrentPermissionMode(),
 			SandboxMode:      s.getCurrentSandboxMode(),
 			RuntimeCatalog:   s.getRuntimeCatalogSnapshot(),
+			HostReadiness:    s.getHostReadinessSnapshot(),
 		},
 	}
 	return s.writeJSON(msg)
@@ -131,6 +132,20 @@ func (s *Service) getRuntimeCatalogSnapshot() []protocol.RuntimeCapability {
 		return nil
 	}
 	return append([]protocol.RuntimeCapability(nil), s.cfg.RuntimeCatalog...)
+}
+
+func (s *Service) getHostReadinessSnapshot() protocol.HostReadiness {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if !s.cfg.Management {
+		return protocol.HostReadiness{}
+	}
+	return cloneHostReadiness(s.cfg.HostReadiness)
+}
+
+func cloneHostReadiness(readiness protocol.HostReadiness) protocol.HostReadiness {
+	readiness.Issues = append([]protocol.HostReadinessIssue(nil), readiness.Issues...)
+	return readiness
 }
 
 func (s *Service) sendTurnEnd(sessionID, status string) error {
