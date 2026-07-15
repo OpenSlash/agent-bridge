@@ -12,7 +12,6 @@ import (
 	"time"
 
 	"github.com/OpenSlash/agent-bridge/internal/applog"
-	"github.com/OpenSlash/agent-bridge/internal/buildmeta"
 	"github.com/OpenSlash/agent-bridge/protocol"
 
 	"github.com/gorilla/websocket"
@@ -72,6 +71,7 @@ func (s *Service) StartAttached(cfg *Config, handlers AttachedHandlers) (string,
 	s.cfg = Config{
 		ServerURL:        cfg.ServerURL,
 		Token:            cfg.Token,
+		AgentVersion:     cfg.AgentVersion,
 		Command:          cfg.Command,
 		ClaudeCommand:    cfg.ClaudeCommand,
 		CodexCommand:     cfg.CodexCommand,
@@ -132,7 +132,7 @@ func (s *Service) StartAttached(cfg *Config, handlers AttachedHandlers) (string,
 			HostID:           cfg.HostID,
 			Command:          registerCommandName(cfg),
 			OS:               runtime.GOOS,
-			Version:          buildmeta.GetVersionString(),
+			Version:          reportedAgentVersion(cfg),
 			Model:            cfg.Model,
 			PermissionMode:   normalizePermissionModeForRuntime(runtimeKind, cfg.PermissionMode),
 			SandboxMode:      normalizeSandboxModeForRuntime(runtimeKind, cfg.SandboxMode),

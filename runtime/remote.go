@@ -36,6 +36,7 @@ const (
 type Config struct {
 	ServerURL        string // WS 服务器地址，如 wss://example.com
 	Token            string // JWT token
+	AgentVersion     string // embedding agent/product version reported to the relay
 	Command          string // 要启动的命令，默认 "claude"
 	ClaudeCommand    string
 	CodexCommand     string
@@ -273,6 +274,7 @@ func (s *Service) Start(cfg *Config) (string, error) {
 	s.cfg = Config{
 		ServerURL:        cfg.ServerURL,
 		Token:            cfg.Token,
+		AgentVersion:     cfg.AgentVersion,
 		Command:          cfg.Command,
 		ClaudeCommand:    cfg.ClaudeCommand,
 		CodexCommand:     cfg.CodexCommand,
@@ -410,7 +412,7 @@ func (s *Service) Start(cfg *Config) (string, error) {
 			HostID:           cfg.HostID,
 			Command:          registerCommandName(cfg),
 			OS:               runtime.GOOS,
-			Version:          buildmeta.GetVersionString(),
+			Version:          reportedAgentVersion(cfg),
 			Model:            cfg.Model,
 			PermissionMode:   normalizePermissionModeForRuntime(runtimeKind, cfg.PermissionMode),
 			SandboxMode:      normalizeSandboxModeForRuntime(runtimeKind, cfg.SandboxMode),
@@ -561,6 +563,15 @@ func (s *Service) Start(cfg *Config) (string, error) {
 		applog.Info.Printf("[Remote] Session registered: %s, proxying %s (PID %d) [stream-json mode]", s.sessionID, cfg.Command, cmd.Process.Pid)
 	}
 	return s.sessionID, nil
+}
+
+func reportedAgentVersion(cfg *Config) string {
+	if cfg != nil {
+		if version := strings.TrimSpace(cfg.AgentVersion); version != "" {
+			return version
+		}
+	}
+	return buildmeta.GetVersionString()
 }
 
 // Stop 优雅关闭

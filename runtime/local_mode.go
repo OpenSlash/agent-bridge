@@ -64,6 +64,7 @@ func (s *Service) StartLocal(cfg *Config, sink func(protocol.Message) error) (st
 	s.cfg = Config{
 		ServerURL:        cfg.ServerURL,
 		Token:            cfg.Token,
+		AgentVersion:     cfg.AgentVersion,
 		Command:          cfg.Command,
 		ClaudeCommand:    cfg.ClaudeCommand,
 		CodexCommand:     cfg.CodexCommand,

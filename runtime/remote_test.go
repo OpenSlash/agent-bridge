@@ -296,6 +296,15 @@ func TestUpdateAttachedSessionStateCanExplicitlyResetModel(t *testing.T) {
 	}
 }
 
+func TestReportedAgentVersionPrefersEmbeddingProductVersion(t *testing.T) {
+	if got := reportedAgentVersion(&Config{AgentVersion: "1.4.32"}); got != "1.4.32" {
+		t.Fatalf("expected embedding agent version, got %q", got)
+	}
+	if got := reportedAgentVersion(&Config{}); strings.TrimSpace(got) == "" {
+		t.Fatal("expected bridge build version fallback")
+	}
+}
+
 func TestTurnStatusForResult(t *testing.T) {
 	if got := turnStatusForResult(false, map[string]any{"subtype": "success"}); got != protocol.TurnCompleted {
 		t.Fatalf("expected completed for success result, got %q", got)
