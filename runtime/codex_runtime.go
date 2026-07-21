@@ -1421,6 +1421,9 @@ func (s *Service) startCodexTurn(content string) error {
 		"sandboxPolicy":  codexSandboxPolicy(s.getCurrentDir(), s.getCurrentSandboxMode()),
 		"cwd":            s.getCurrentDir(),
 	}
+	if effort := strings.TrimSpace(s.getCurrentReasoningEffort()); effort != "" {
+		params["effort"] = effort
+	}
 	applog.Info.Printf(
 		"[Remote] codex turn/start request: session=%s thread=%s chars=%d cwd=%s approval=%s sandbox=%s",
 		s.SessionID(),

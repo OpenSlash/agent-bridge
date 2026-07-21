@@ -131,11 +131,12 @@ func (s *Service) handleCreateSession(parentSessionID string, req protocol.Creat
 		return
 	}
 	applog.Info.Printf(
-		"[Remote] create-session requested: parent=%s cwd=%s runtime=%s model=%s permission=%s sandbox=%s resume=%s runtime_resume=%s",
+		"[Remote] create-session requested: parent=%s cwd=%s runtime=%s model=%s reasoning=%s permission=%s sandbox=%s resume=%s runtime_resume=%s",
 		parentSessionID,
 		req.WorkingDir,
 		req.Runtime,
 		req.Model,
+		req.ReasoningEffort,
 		req.PermissionMode,
 		req.SandboxMode,
 		req.ResumeSessionID,
@@ -173,6 +174,9 @@ func (s *Service) handleCreateSession(parentSessionID string, req protocol.Creat
 	}
 	if req.Model != "" {
 		childCfg.Model = req.Model
+	}
+	if req.ReasoningEffort != "" {
+		childCfg.ReasoningEffort = strings.TrimSpace(req.ReasoningEffort)
 	}
 	if req.PermissionMode != "" {
 		childCfg.PermissionMode = req.PermissionMode

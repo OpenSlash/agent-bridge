@@ -9,12 +9,13 @@ import (
 )
 
 type reconnectSnapshot struct {
-	cfg            Config
-	sessionID      string
-	workingDir     string
-	model          string
-	permissionMode string
-	sandboxMode    string
+	cfg             Config
+	sessionID       string
+	workingDir      string
+	model           string
+	reasoningEffort string
+	permissionMode  string
+	sandboxMode     string
 
 	attachedInputHandler     func(string) error
 	attachedInterruptHandler func() error
@@ -108,6 +109,7 @@ func (s *Service) scheduleAutoReconnect(snapshot reconnectSnapshot) {
 			cfg.WorkingDir = snapshot.workingDir
 		}
 		cfg.Model = snapshot.model
+		cfg.ReasoningEffort = snapshot.reasoningEffort
 		cfg.PermissionMode = snapshot.permissionMode
 		cfg.SandboxMode = snapshot.sandboxMode
 		if snapshot.sessionID != "" {

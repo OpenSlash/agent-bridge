@@ -126,12 +126,13 @@ type RegisterPayload struct {
 	Cwd              string              `json:"cwd"`
 	Pid              int                 `json:"pid"`
 	HostID           string              `json:"host_id,omitempty"`
-	Command          string              `json:"command,omitempty"`         // 启动的命令，如 "claude"
-	OS               string              `json:"os,omitempty"`              // 操作系统，如 "darwin", "linux"
-	Version          string              `json:"version,omitempty"`         // CLI 版本
-	Model            string              `json:"model,omitempty"`           // 当前模型
-	PermissionMode   string              `json:"permission_mode,omitempty"` // 当前权限模式
-	SandboxMode      string              `json:"sandbox_mode,omitempty"`    // 当前沙箱模式
+	Command          string              `json:"command,omitempty"`          // 启动的命令，如 "claude"
+	OS               string              `json:"os,omitempty"`               // 操作系统，如 "darwin", "linux"
+	Version          string              `json:"version,omitempty"`          // CLI 版本
+	Model            string              `json:"model,omitempty"`            // 当前模型
+	ReasoningEffort  string              `json:"reasoning_effort,omitempty"` // 当前推理强度
+	PermissionMode   string              `json:"permission_mode,omitempty"`  // 当前权限模式
+	SandboxMode      string              `json:"sandbox_mode,omitempty"`     // 当前沙箱模式
 	RuntimeCatalog   []RuntimeCapability `json:"runtime_catalog,omitempty"`
 	HostReadiness    HostReadiness       `json:"host_readiness,omitempty"`
 }
@@ -168,6 +169,7 @@ type KeepalivePayload struct {
 	Thinking         bool                `json:"thinking"`
 	Mode             string              `json:"mode"`                         // local / remote
 	Model            string              `json:"model,omitempty"`              // 当前模型（可能在会话中切换）
+	ReasoningEffort  string              `json:"reasoning_effort,omitempty"`   // 当前推理强度
 	Cwd              string              `json:"cwd,omitempty"`                // 当前工作目录
 	RuntimeSessionID string              `json:"runtime_session_id,omitempty"` // runtime 内部会话 ID，如 Codex thread id
 	PermissionMode   string              `json:"permission_mode,omitempty"`    // 当前权限模式
@@ -203,6 +205,7 @@ type SessionInfo struct {
 	OS                         string    `json:"os,omitempty"`
 	Version                    string    `json:"version,omitempty"`
 	Model                      string    `json:"model,omitempty"`
+	ReasoningEffort            string    `json:"reasoning_effort,omitempty"`
 	PermissionMode             string    `json:"permission_mode,omitempty"`
 	SandboxMode                string    `json:"sandbox_mode,omitempty"`
 	StopReason                 string    `json:"stop_reason,omitempty"`
@@ -219,8 +222,19 @@ type SessionsPayload struct {
 
 // RuntimeModelInfo 主机声明的模型目录项
 type RuntimeModelInfo struct {
-	ID    string `json:"id"`
-	Title string `json:"title,omitempty"`
+	ID                        string                       `json:"id"`
+	Title                     string                       `json:"title,omitempty"`
+	Detail                    string                       `json:"detail,omitempty"`
+	DefaultReasoningEffort    string                       `json:"default_reasoning_effort,omitempty"`
+	SupportedReasoningEfforts []RuntimeReasoningEffortInfo `json:"supported_reasoning_efforts,omitempty"`
+	IsDefault                 bool                         `json:"is_default,omitempty"`
+}
+
+// RuntimeReasoningEffortInfo describes one reasoning level exposed by a runtime model.
+type RuntimeReasoningEffortInfo struct {
+	ID     string `json:"id"`
+	Title  string `json:"title,omitempty"`
+	Detail string `json:"detail,omitempty"`
 }
 
 // RuntimeCapability 主机声明的运行时能力
@@ -228,6 +242,7 @@ type RuntimeCapability struct {
 	ID             string             `json:"id"`
 	Title          string             `json:"title,omitempty"`
 	Models         []RuntimeModelInfo `json:"models,omitempty"`
+	DefaultModel   string             `json:"default_model,omitempty"`
 	SupportsImages bool               `json:"supports_images,omitempty"`
 }
 
@@ -295,12 +310,14 @@ type PermissionClearedPayload struct {
 
 // SessionConfigPayload 会话配置（手机→电脑，连接后发送）
 type SessionConfigPayload struct {
-	WorkingDir     string `json:"working_dir,omitempty"`     // 工作目录
-	Model          string `json:"model,omitempty"`           // 模型
-	ApplyModel     bool   `json:"apply_model,omitempty"`     // 是否显式应用模型（允许切回默认）
-	PermissionMode string `json:"permission_mode,omitempty"` // 权限模式
-	SandboxMode    string `json:"sandbox_mode,omitempty"`    // 沙箱模式
-	Restart        bool   `json:"restart,omitempty"`         // 是否重启 Claude 进程创建新会话
+	WorkingDir           string `json:"working_dir,omitempty"`            // 工作目录
+	Model                string `json:"model,omitempty"`                  // 模型
+	ApplyModel           bool   `json:"apply_model,omitempty"`            // 是否显式应用模型（允许切回默认）
+	ReasoningEffort      string `json:"reasoning_effort,omitempty"`       // 推理强度
+	ApplyReasoningEffort bool   `json:"apply_reasoning_effort,omitempty"` // 是否显式应用推理强度
+	PermissionMode       string `json:"permission_mode,omitempty"`        // 权限模式
+	SandboxMode          string `json:"sandbox_mode,omitempty"`           // 沙箱模式
+	Restart              bool   `json:"restart,omitempty"`                // 是否重启 Claude 进程创建新会话
 }
 
 // CreateSessionPayload 创建新代理会话（手机→电脑）
@@ -311,6 +328,7 @@ type CreateSessionPayload struct {
 	WorkingDir             string                       `json:"working_dir,omitempty"`
 	Runtime                string                       `json:"runtime,omitempty"`
 	Model                  string                       `json:"model,omitempty"`
+	ReasoningEffort        string                       `json:"reasoning_effort,omitempty"`
 	PermissionMode         string                       `json:"permission_mode,omitempty"`
 	SandboxMode            string                       `json:"sandbox_mode,omitempty"`
 	ResumeSessionID        string                       `json:"resume_session_id,omitempty"`

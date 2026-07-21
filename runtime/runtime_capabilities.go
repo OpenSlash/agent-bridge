@@ -12,6 +12,7 @@ import (
 type RuntimeCatalogOptions struct {
 	ClaudeEnabled bool
 	CodexEnabled  bool
+	CodexModels   []protocol.RuntimeModelInfo
 }
 
 func runtimeTitle(runtime runtimeKind) string {
@@ -53,10 +54,22 @@ func BuildRuntimeCatalog(options RuntimeCatalogOptions) []protocol.RuntimeCapabi
 	}
 	catalog := make([]protocol.RuntimeCapability, 0, len(runtimes))
 	for _, runtime := range runtimes {
+		models := runtimeModelCatalogForRuntime(runtime)
+		if runtime == runtimeCodex && len(options.CodexModels) > 0 {
+			models = append([]protocol.RuntimeModelInfo(nil), options.CodexModels...)
+		}
+		defaultModel := ""
+		for _, model := range models {
+			if model.IsDefault {
+				defaultModel = strings.TrimSpace(model.ID)
+				break
+			}
+		}
 		catalog = append(catalog, protocol.RuntimeCapability{
 			ID:             string(runtime),
 			Title:          runtimeTitle(runtime),
-			Models:         runtimeModelCatalogForRuntime(runtime),
+			Models:         models,
+			DefaultModel:   defaultModel,
 			SupportsImages: true,
 		})
 	}

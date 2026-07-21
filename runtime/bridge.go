@@ -230,10 +230,16 @@ func (s *Service) startBridge() {
 					if decision.SandboxModeChanged && !decision.SandboxModeNeedsRestart {
 						s.setCurrentSandboxMode(decision.TargetSandboxMode)
 					}
+					if decision.ReasoningEffortChanged {
+						s.setCurrentReasoningEffort(decision.TargetReasoningEffort)
+					}
 					if (decision.PermissionModeChanged && !decision.PermissionModeNeedsRestart) ||
-						(decision.SandboxModeChanged && !decision.SandboxModeNeedsRestart) {
+						(decision.SandboxModeChanged && !decision.SandboxModeNeedsRestart) ||
+						decision.ReasoningEffortChanged {
 						shouldSendKeepalive := true
-						if s.getRuntime() == runtimeCodex {
+						executionModeChanged := (decision.PermissionModeChanged && !decision.PermissionModeNeedsRestart) ||
+							(decision.SandboxModeChanged && !decision.SandboxModeNeedsRestart)
+						if s.getRuntime() == runtimeCodex && executionModeChanged {
 							applied, err := s.rebindCodexThreadConfiguration()
 							if err != nil {
 								applog.Errorf("[Remote] codex execution mode rebind failed: %v", err)

@@ -59,6 +59,9 @@ func requiresSandboxModeRestart(runtime runtimeKind, currentMode, targetMode str
 type sessionConfigDecision struct {
 	TargetModel                string
 	ApplyModel                 bool
+	TargetReasoningEffort      string
+	ApplyReasoningEffort       bool
+	ReasoningEffortChanged     bool
 	TargetPermissionMode       string
 	TargetSandboxMode          string
 	PermissionModeChanged      bool
@@ -73,20 +76,22 @@ type sessionConfigDecision struct {
 
 func (s *Service) evaluateSessionConfig(cfg protocol.SessionConfigPayload) sessionConfigDecision {
 	return EvaluateSessionConfig(SessionConfigContext{
-		Runtime:               string(s.getRuntime()),
-		CurrentWorkingDir:     s.getCurrentDir(),
-		CurrentModel:          s.getCurrentModel(),
-		CurrentPermissionMode: s.getCurrentPermissionMode(),
-		CurrentSandboxMode:    s.getCurrentSandboxMode(),
+		Runtime:                string(s.getRuntime()),
+		CurrentWorkingDir:      s.getCurrentDir(),
+		CurrentModel:           s.getCurrentModel(),
+		CurrentReasoningEffort: s.getCurrentReasoningEffort(),
+		CurrentPermissionMode:  s.getCurrentPermissionMode(),
+		CurrentSandboxMode:     s.getCurrentSandboxMode(),
 	}, cfg)
 }
 
 type SessionConfigContext struct {
-	Runtime               string
-	CurrentWorkingDir     string
-	CurrentModel          string
-	CurrentPermissionMode string
-	CurrentSandboxMode    string
+	Runtime                string
+	CurrentWorkingDir      string
+	CurrentModel           string
+	CurrentReasoningEffort string
+	CurrentPermissionMode  string
+	CurrentSandboxMode     string
 }
 
 func EvaluateSessionConfig(ctx SessionConfigContext, cfg protocol.SessionConfigPayload) sessionConfigDecision {
@@ -105,6 +110,8 @@ func EvaluateSessionConfig(ctx SessionConfigContext, cfg protocol.SessionConfigP
 
 	targetModel := strings.TrimSpace(cfg.Model)
 	modelChanged := cfg.ApplyModel && targetModel != currentModel
+	targetReasoningEffort := strings.TrimSpace(cfg.ReasoningEffort)
+	reasoningEffortChanged := cfg.ApplyReasoningEffort && targetReasoningEffort != strings.TrimSpace(ctx.CurrentReasoningEffort)
 	workingDirChanged := strings.TrimSpace(cfg.WorkingDir) != "" && strings.TrimSpace(cfg.WorkingDir) != currentDir
 	needsRestart := cfg.Restart || workingDirChanged || permissionModeNeedsRestart || sandboxModeNeedsRestart || modelChanged
 	resumeConversation := !cfg.Restart && !workingDirChanged && (permissionModeNeedsRestart || sandboxModeNeedsRestart || modelChanged)
@@ -112,6 +119,9 @@ func EvaluateSessionConfig(ctx SessionConfigContext, cfg protocol.SessionConfigP
 	return sessionConfigDecision{
 		TargetModel:                targetModel,
 		ApplyModel:                 cfg.ApplyModel,
+		TargetReasoningEffort:      targetReasoningEffort,
+		ApplyReasoningEffort:       cfg.ApplyReasoningEffort,
+		ReasoningEffortChanged:     reasoningEffortChanged,
 		TargetPermissionMode:       targetPermissionMode,
 		TargetSandboxMode:          targetSandboxMode,
 		PermissionModeChanged:      permissionModeChanged,

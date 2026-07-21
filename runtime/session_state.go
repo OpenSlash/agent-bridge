@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"strings"
 	"time"
 
 	"github.com/OpenSlash/agent-bridge/internal/applog"
@@ -60,6 +61,19 @@ func (s *Service) getCurrentModel() string {
 	return s.currentModel
 }
 
+func (s *Service) getCurrentReasoningEffort() string {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return strings.TrimSpace(s.currentReasoningEffort)
+}
+
+func (s *Service) setCurrentReasoningEffort(effort string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.currentReasoningEffort = strings.TrimSpace(effort)
+	s.cfg.ReasoningEffort = s.currentReasoningEffort
+}
+
 func (s *Service) getCurrentPermissionMode() string {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -92,11 +106,12 @@ func (s *Service) setCurrentSandboxMode(mode string) {
 
 func (s *Service) sendCurrentKeepalive(sessionID string) error {
 	applog.Info.Printf(
-		"[Remote] keepalive send: session=%s runtime=%s thinking=%t model=%s cwd=%s permission=%s sandbox=%s",
+		"[Remote] keepalive send: session=%s runtime=%s thinking=%t model=%s reasoning=%s cwd=%s permission=%s sandbox=%s",
 		sessionID,
 		s.getRuntimeSessionID(),
 		s.getThinking(),
 		s.getCurrentModel(),
+		s.getCurrentReasoningEffort(),
 		s.getCurrentDir(),
 		s.getCurrentPermissionMode(),
 		s.getCurrentSandboxMode(),
@@ -108,6 +123,7 @@ func (s *Service) sendCurrentKeepalive(sessionID string) error {
 			Thinking:         s.getThinking(),
 			Mode:             sessionMode(s.cfg.Management),
 			Model:            s.getCurrentModel(),
+			ReasoningEffort:  s.getCurrentReasoningEffort(),
 			Cwd:              s.getCurrentDir(),
 			RuntimeSessionID: s.getRuntimeSessionID(),
 			PermissionMode:   s.getCurrentPermissionMode(),

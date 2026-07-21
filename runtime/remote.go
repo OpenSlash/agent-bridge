@@ -43,6 +43,7 @@ type Config struct {
 	Args             []string
 	WorkingDir       string
 	Model            string
+	ReasoningEffort  string
 	PermissionMode   string
 	SandboxMode      string
 	HostID           string
@@ -125,6 +126,7 @@ type Service struct {
 	cfg                               Config
 	currentDir                        string
 	currentModel                      string
+	currentReasoningEffort            string
 	currentPermissionMode             string
 	currentSandboxMode                string
 	contentProtector                  *contentProtector
@@ -414,6 +416,7 @@ func (s *Service) Start(cfg *Config) (string, error) {
 			OS:               runtime.GOOS,
 			Version:          reportedAgentVersion(cfg),
 			Model:            cfg.Model,
+			ReasoningEffort:  strings.TrimSpace(cfg.ReasoningEffort),
 			PermissionMode:   normalizePermissionModeForRuntime(runtimeKind, cfg.PermissionMode),
 			SandboxMode:      normalizeSandboxModeForRuntime(runtimeKind, cfg.SandboxMode),
 			RuntimeCatalog: func() []protocol.RuntimeCapability {
@@ -518,6 +521,7 @@ func (s *Service) Start(cfg *Config) (string, error) {
 	s.running = true
 	s.currentDir = cwd
 	s.currentModel = cfg.Model
+	s.currentReasoningEffort = strings.TrimSpace(cfg.ReasoningEffort)
 	s.currentPermissionMode = normalizePermissionModeForRuntime(runtimeKind, cfg.PermissionMode)
 	s.currentSandboxMode = normalizeSandboxModeForRuntime(runtimeKind, cfg.SandboxMode)
 	s.contentProtector = contentProtector
@@ -602,6 +606,7 @@ func (s *Service) StopWithReason(reason string) error {
 		s.sessionID = ""
 		s.runtimeSessionID = ""
 		s.currentModel = ""
+		s.currentReasoningEffort = ""
 		s.currentDir = ""
 		s.currentPermissionMode = protocol.PermissionModeDefault
 		s.currentSandboxMode = ""
@@ -706,6 +711,7 @@ func (s *Service) StopWithReason(reason string) error {
 	s.sessionID = ""
 	s.runtimeSessionID = ""
 	s.currentModel = ""
+	s.currentReasoningEffort = ""
 	s.currentDir = ""
 	s.currentPermissionMode = protocol.PermissionModeDefault
 	s.currentSandboxMode = ""

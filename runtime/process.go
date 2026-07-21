@@ -388,6 +388,7 @@ func (s *Service) restartCommand(sessionID, workingDir, model string, applyModel
 	s.cfg.RuntimeSessionID = targetRuntimeSessionID
 	s.currentDir = targetDir
 	s.currentModel = targetModel
+	s.currentReasoningEffort = strings.TrimSpace(s.cfg.ReasoningEffort)
 	s.currentPermissionMode = targetPermissionMode
 	s.currentSandboxMode = targetSandboxMode
 	s.turnActive = false
@@ -482,6 +483,7 @@ func (s *Service) markDisconnected() {
 		sessionID:                s.sessionID,
 		workingDir:               s.currentDir,
 		model:                    s.currentModel,
+		reasoningEffort:          s.currentReasoningEffort,
 		permissionMode:           s.currentPermissionMode,
 		sandboxMode:              s.currentSandboxMode,
 		attachedInputHandler:     s.attachedInputHandler,
@@ -504,6 +506,7 @@ func (s *Service) markDisconnected() {
 	s.adapter = nil
 	s.runtime = runtimeClaude
 	s.currentModel = ""
+	s.currentReasoningEffort = ""
 	s.currentDir = ""
 	s.currentPermissionMode = protocol.PermissionModeDefault
 	s.currentSandboxMode = ""

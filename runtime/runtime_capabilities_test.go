@@ -64,6 +64,19 @@ func TestRuntimeModelCatalogMatchesRuntime(t *testing.T) {
 	}
 }
 
+func TestBuildRuntimeCatalogUsesDiscoveredCodexModels(t *testing.T) {
+	catalog := BuildRuntimeCatalog(RuntimeCatalogOptions{
+		CodexEnabled: true,
+		CodexModels:  []protocol.RuntimeModelInfo{{ID: "gpt-5.6-sol", Title: "GPT-5.6-Sol", IsDefault: true}},
+	})
+	if len(catalog) != 1 || len(catalog[0].Models) != 1 {
+		t.Fatalf("unexpected catalog: %#v", catalog)
+	}
+	if catalog[0].Models[0].ID != "gpt-5.6-sol" || catalog[0].DefaultModel != "gpt-5.6-sol" {
+		t.Fatalf("discovered default model was not preserved: %#v", catalog[0])
+	}
+}
+
 func TestRuntimeSlashCommandExposure(t *testing.T) {
 	if !runtimeAllowsCustomSlashCommands(runtimeClaude) {
 		t.Fatal("expected claude runtime to allow custom slash commands")

@@ -139,6 +139,7 @@ func (s *Service) StartLocal(cfg *Config, sink func(protocol.Message) error) (st
 	s.running = true
 	s.currentDir = cwd
 	s.currentModel = cfg.Model
+	s.currentReasoningEffort = strings.TrimSpace(cfg.ReasoningEffort)
 	s.currentPermissionMode = normalizePermissionModeForRuntime(runtimeKind, cfg.PermissionMode)
 	s.currentSandboxMode = normalizeSandboxModeForRuntime(runtimeKind, cfg.SandboxMode)
 	s.contentProtector = nil

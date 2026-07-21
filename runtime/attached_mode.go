@@ -182,6 +182,7 @@ func (s *Service) StartAttached(cfg *Config, handlers AttachedHandlers) (string,
 	s.running = true
 	s.currentDir = cwd
 	s.currentModel = cfg.Model
+	s.currentReasoningEffort = strings.TrimSpace(cfg.ReasoningEffort)
 	s.currentPermissionMode = normalizePermissionModeForRuntime(runtimeKind, cfg.PermissionMode)
 	s.currentSandboxMode = normalizeSandboxModeForRuntime(runtimeKind, cfg.SandboxMode)
 	s.contentProtector = contentProtector
