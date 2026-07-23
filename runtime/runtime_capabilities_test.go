@@ -1,6 +1,7 @@
 package remote
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"strings"
@@ -74,6 +75,28 @@ func TestBuildRuntimeCatalogUsesDiscoveredCodexModels(t *testing.T) {
 	}
 	if catalog[0].Models[0].ID != "gpt-5.6-sol" || catalog[0].DefaultModel != "gpt-5.6-sol" {
 		t.Fatalf("discovered default model was not preserved: %#v", catalog[0])
+	}
+}
+
+func TestRuntimeCapabilityDiagnosticMetadataRoundTrips(t *testing.T) {
+	capability := protocol.RuntimeCapability{
+		ID:               "codex",
+		RuntimeVersion:   "0.145.0",
+		CatalogStatus:    "ready",
+		CatalogSource:    "app-server",
+		CatalogUpdatedAt: 123,
+		RepairCommand:    "veilo update codex-runtime",
+	}
+	data, err := json.Marshal(capability)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var decoded protocol.RuntimeCapability
+	if err := json.Unmarshal(data, &decoded); err != nil {
+		t.Fatal(err)
+	}
+	if decoded.RuntimeVersion != "0.145.0" || decoded.CatalogStatus != "ready" || decoded.CatalogUpdatedAt != 123 {
+		t.Fatalf("unexpected diagnostic metadata: %#v", decoded)
 	}
 }
 

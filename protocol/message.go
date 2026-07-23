@@ -239,11 +239,18 @@ type RuntimeReasoningEffortInfo struct {
 
 // RuntimeCapability 主机声明的运行时能力
 type RuntimeCapability struct {
-	ID             string             `json:"id"`
-	Title          string             `json:"title,omitempty"`
-	Models         []RuntimeModelInfo `json:"models,omitempty"`
-	DefaultModel   string             `json:"default_model,omitempty"`
-	SupportsImages bool               `json:"supports_images,omitempty"`
+	ID               string             `json:"id"`
+	Title            string             `json:"title,omitempty"`
+	Detail           string             `json:"detail,omitempty"`
+	Models           []RuntimeModelInfo `json:"models,omitempty"`
+	DefaultModel     string             `json:"default_model,omitempty"`
+	RuntimeVersion   string             `json:"runtime_version,omitempty"`
+	CatalogStatus    string             `json:"catalog_status,omitempty"`
+	CatalogSource    string             `json:"catalog_source,omitempty"`
+	CatalogUpdatedAt int64              `json:"catalog_updated_at,omitempty"`
+	CatalogError     string             `json:"catalog_error,omitempty"`
+	RepairCommand    string             `json:"repair_command,omitempty"`
+	SupportsImages   bool               `json:"supports_images,omitempty"`
 }
 
 // HostReadinessIssue describes an actionable problem on a remote management host.
