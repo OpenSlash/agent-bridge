@@ -2,6 +2,7 @@ package remote
 
 import (
 	"bufio"
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -35,6 +36,7 @@ type codexRolloutMeta struct {
 
 type CodexLocalSession struct {
 	RuntimeSessionID string
+	Preview          string
 	Cwd              string
 	Path             string
 	ModelProvider    string
@@ -234,8 +236,10 @@ func ListCodexLocalSessions(cwd string, includeAll bool) ([]CodexLocalSession, e
 			}
 		}
 
+		lineCount, preview := inspectCodexRollout(match)
 		session := CodexLocalSession{
 			RuntimeSessionID: runtimeSessionID,
+			Preview:          preview,
 			Cwd:              cleanCWD,
 			Path:             match,
 			ModelProvider:    strings.TrimSpace(meta.Payload.ModelProvider),
@@ -244,7 +248,7 @@ func ListCodexLocalSessions(cwd string, includeAll bool) ([]CodexLocalSession, e
 			Originator:       strings.TrimSpace(meta.Payload.Originator),
 			SessionTime:      sessionTime,
 			ModTime:          info.ModTime(),
-			LineCount:        countCodexRolloutLines(match),
+			LineCount:        lineCount,
 		}
 		if existing, exists := latestByID[runtimeSessionID]; exists && !session.ModTime.After(existing.ModTime) {
 			continue
@@ -292,26 +296,53 @@ func readCodexRolloutMeta(path string) (codexRolloutMeta, error) {
 	return meta, nil
 }
 
-func countCodexRolloutLines(path string) int {
+func inspectCodexRollout(path string) (lineCount int, preview string) {
 	file, err := os.Open(path)
 	if err != nil {
-		return 0
+		return 0, ""
 	}
 	defer file.Close()
 
 	reader := bufio.NewReader(file)
-	count := 0
 	for {
-		_, err := reader.ReadBytes('\n')
-		if err != nil {
-			if err == io.EOF {
+		line, readErr := reader.ReadBytes('\n')
+		if len(line) > 0 {
+			lineCount++
+			if bytes.Contains(line, []byte(`"user_message"`)) {
+				var record struct {
+					Type    string `json:"type"`
+					Payload struct {
+						Type    string `json:"type"`
+						Message string `json:"message"`
+					} `json:"payload"`
+				}
+				if json.Unmarshal(line, &record) == nil &&
+					strings.TrimSpace(record.Type) == "event_msg" &&
+					strings.TrimSpace(record.Payload.Type) == "user_message" {
+					if candidate := compactCodexSessionPreview(record.Payload.Message); candidate != "" {
+						preview = candidate
+					}
+				}
+			}
+		}
+		if readErr != nil {
+			if readErr == io.EOF {
 				break
 			}
-			return count
+			return lineCount, preview
 		}
-		count++
 	}
-	return count
+	return lineCount, preview
+}
+
+func compactCodexSessionPreview(value string) string {
+	compact := strings.Join(strings.Fields(value), " ")
+	const maxRunes = 240
+	runes := []rune(compact)
+	if len(runes) <= maxRunes {
+		return compact
+	}
+	return strings.TrimSpace(string(runes[:maxRunes])) + "…"
 }
 
 func isCodexRolloutNotReady(err error) bool {

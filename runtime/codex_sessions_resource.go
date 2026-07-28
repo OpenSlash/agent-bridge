@@ -65,6 +65,7 @@ func buildCodexSessionsResponse(req protocol.ListCodexSessionsPayload) (protocol
 	for _, session := range sessions {
 		entries = append(entries, protocol.CodexLocalSessionEntry{
 			RuntimeSessionID: session.RuntimeSessionID,
+			Preview:          session.Preview,
 			Cwd:              session.Cwd,
 			ModelProvider:    session.ModelProvider,
 			CLIVersion:       session.CLIVersion,

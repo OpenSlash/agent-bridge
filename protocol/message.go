@@ -607,6 +607,7 @@ type ListCodexSessionsPayload struct {
 // CodexLocalSessionEntry 是可由 codex resume 恢复的本地 Thread 摘要。
 type CodexLocalSessionEntry struct {
 	RuntimeSessionID string `json:"runtime_session_id"`
+	Preview          string `json:"preview,omitempty"`
 	Cwd              string `json:"cwd,omitempty"`
 	ModelProvider    string `json:"model_provider,omitempty"`
 	CLIVersion       string `json:"cli_version,omitempty"`

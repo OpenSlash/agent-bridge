@@ -34,8 +34,11 @@ func TestBuildCodexSessionsResponseFiltersAndSorts(t *testing.T) {
 	if resp.Sessions[0].RuntimeSessionID != "thread-new" || resp.Sessions[1].RuntimeSessionID != "thread-old" {
 		t.Fatalf("unexpected order: %+v", resp.Sessions)
 	}
-	if resp.Sessions[0].CLIVersion != "0.145.0" || resp.Sessions[0].LineCount != 2 {
+	if resp.Sessions[0].CLIVersion != "0.145.0" || resp.Sessions[0].LineCount != 3 {
 		t.Fatalf("unexpected session metadata: %+v", resp.Sessions[0])
+	}
+	if resp.Sessions[0].Preview != "Continue implementing the mobile session picker" {
+		t.Fatalf("unexpected session preview: %q", resp.Sessions[0].Preview)
 	}
 }
 
@@ -61,7 +64,7 @@ func writeCodexSessionFixture(t *testing.T, home, datePath, id, cwd, cliVersion 
 		t.Fatal(err)
 	}
 	path := filepath.Join(dir, "rollout-"+id+".jsonl")
-	content := fmt.Sprintf("{\"type\":\"session_meta\",\"payload\":{\"id\":%q,\"timestamp\":%q,\"cwd\":%q,\"originator\":\"codex_cli_rs\",\"cli_version\":%q,\"source\":\"cli\",\"model_provider\":\"openai\"}}\n{\"type\":\"event_msg\"}\n", id, timestamp.UTC().Format(time.RFC3339Nano), cwd, cliVersion)
+	content := fmt.Sprintf("{\"type\":\"session_meta\",\"payload\":{\"id\":%q,\"timestamp\":%q,\"cwd\":%q,\"originator\":\"codex_cli_rs\",\"cli_version\":%q,\"source\":\"cli\",\"model_provider\":\"openai\"}}\n{\"type\":\"event_msg\",\"payload\":{\"type\":\"user_message\",\"message\":\"Initial task\"}}\n{\"type\":\"event_msg\",\"payload\":{\"type\":\"user_message\",\"message\":\"Continue implementing the mobile session picker\"}}\n", id, timestamp.UTC().Format(time.RFC3339Nano), cwd, cliVersion)
 	if err := os.WriteFile(path, []byte(content), 0o600); err != nil {
 		t.Fatal(err)
 	}
