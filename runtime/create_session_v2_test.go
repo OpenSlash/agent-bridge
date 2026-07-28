@@ -41,6 +41,16 @@ func TestResetChildSessionIdentityPreservesExplicitResumeTarget(t *testing.T) {
 	}
 }
 
+func TestResetChildSessionIdentityPreservesExternalRuntimeResumeTarget(t *testing.T) {
+	cfg := Config{SessionID: "manager-host-id", RuntimeSessionID: "manager-runtime-id"}
+	resetChildSessionIdentity(&cfg, protocol.CreateSessionPayload{
+		ResumeRuntimeSessionID: " codex-thread-1 ",
+	})
+	if cfg.SessionID != "" || cfg.RuntimeSessionID != "codex-thread-1" || !cfg.Resume {
+		t.Fatalf("external runtime resume target was not applied: %+v", cfg)
+	}
+}
+
 func TestBeginCreateSessionWaitsForOriginalResult(t *testing.T) {
 	service := NewService()
 	req := protocol.CreateSessionPayload{

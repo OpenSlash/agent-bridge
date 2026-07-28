@@ -249,9 +249,11 @@ func resetChildSessionIdentity(cfg *Config, req protocol.CreateSessionPayload) {
 	cfg.SessionID = ""
 	cfg.RuntimeSessionID = ""
 	cfg.Resume = false
-	if resumeSessionID := strings.TrimSpace(req.ResumeSessionID); resumeSessionID != "" {
+	resumeSessionID := strings.TrimSpace(req.ResumeSessionID)
+	resumeRuntimeSessionID := strings.TrimSpace(req.ResumeRuntimeSessionID)
+	if resumeSessionID != "" || resumeRuntimeSessionID != "" {
 		cfg.SessionID = resumeSessionID
-		cfg.RuntimeSessionID = strings.TrimSpace(req.ResumeRuntimeSessionID)
+		cfg.RuntimeSessionID = resumeRuntimeSessionID
 		cfg.Resume = true
 	}
 }
@@ -286,7 +288,7 @@ func (s *Service) startChildProxy(cfg *Config) (string, error) {
 	if childCfg.SandboxMode == "" {
 		childCfg.SandboxMode = defaultSandboxModeForRuntime(detectRuntime(childCfg.Command))
 	}
-	if childCfg.Resume && childCfg.SessionID == "" {
+	if childCfg.Resume && childCfg.SessionID == "" && childCfg.RuntimeSessionID == "" {
 		childCfg.Resume = false
 	}
 
