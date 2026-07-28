@@ -272,7 +272,9 @@ func shouldProtectRealtimePayload(messageType string) bool {
 		protocol.TypeListCommands,
 		protocol.TypeListCommandsResponse,
 		protocol.TypeListSkills,
-		protocol.TypeListSkillsResponse:
+		protocol.TypeListSkillsResponse,
+		protocol.TypeListCodexSessions,
+		protocol.TypeListCodexSessionsResponse:
 		return true
 	default:
 		return false

@@ -184,6 +184,11 @@ func (s *Service) startBridge() {
 				if s.decodePayload(sessionID, msg.Type, msg.Payload, &req) == nil {
 					go s.handleListSkills(sessionID, req)
 				}
+			case protocol.TypeListCodexSessions:
+				var req protocol.ListCodexSessionsPayload
+				if s.decodePayload(sessionID, msg.Type, msg.Payload, &req) == nil {
+					go s.handleListCodexSessions(sessionID, req)
+				}
 			case protocol.TypeSessionKeyRequest:
 				var req protocol.SessionKeyRequestPayload
 				if decodePlainPayload(msg.Payload, &req) == nil {

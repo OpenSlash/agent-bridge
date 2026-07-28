@@ -29,24 +29,26 @@ const (
 	TypeSessionActionResult = "session-action-result" // 会话操作结果（电脑→手机）
 	TypeSessionLifecycle    = "session-lifecycle"     // 会话生命周期事件（电脑→手机）
 
-	TypeListDir                 = "list-dir"                   // 目录浏览请求（手机→电脑）
-	TypeListDirResponse         = "list-dir-response"          // 目录浏览响应（电脑→手机）
-	TypeReadFile                = "read-file"                  // 文件预览请求（手机→电脑）
-	TypeReadFileResponse        = "read-file-response"         // 文件预览响应（电脑→手机）
-	TypeGitStatus               = "git-status"                 // Git 仓库状态请求（手机→电脑）
-	TypeGitStatusResponse       = "git-status-response"        // Git 仓库状态响应（电脑→手机）
-	TypeGitDiff                 = "git-diff"                   // Git diff 请求（手机→电脑）
-	TypeGitDiffResponse         = "git-diff-response"          // Git diff 响应（电脑→手机）
-	TypeGitLog                  = "git-log"                    // Git 提交记录请求（手机→电脑）
-	TypeGitLogResponse          = "git-log-response"           // Git 提交记录响应（电脑→手机）
-	TypeGitCommitDetail         = "git-commit-detail"          // Git 提交详情请求（手机→电脑）
-	TypeGitCommitDetailResponse = "git-commit-detail-response" // Git 提交详情响应（电脑→手机）
-	TypeListCommands            = "list-commands"              // Slash 命令列表请求（手机→电脑）
-	TypeListCommandsResponse    = "list-commands-response"     // Slash 命令列表响应（电脑→手机）
-	TypeListSkills              = "list-skills"                // Codex 技能列表请求（手机→电脑）
-	TypeListSkillsResponse      = "list-skills-response"       // Codex 技能列表响应（电脑→手机）
-	TypeSessionKeyRequest       = "session-key-request"        // 会话内容密钥请求（手机→电脑）
-	TypeSessionKeyResponse      = "session-key-response"       // 会话内容密钥响应（电脑→手机）
+	TypeListDir                   = "list-dir"                     // 目录浏览请求（手机→电脑）
+	TypeListDirResponse           = "list-dir-response"            // 目录浏览响应（电脑→手机）
+	TypeReadFile                  = "read-file"                    // 文件预览请求（手机→电脑）
+	TypeReadFileResponse          = "read-file-response"           // 文件预览响应（电脑→手机）
+	TypeGitStatus                 = "git-status"                   // Git 仓库状态请求（手机→电脑）
+	TypeGitStatusResponse         = "git-status-response"          // Git 仓库状态响应（电脑→手机）
+	TypeGitDiff                   = "git-diff"                     // Git diff 请求（手机→电脑）
+	TypeGitDiffResponse           = "git-diff-response"            // Git diff 响应（电脑→手机）
+	TypeGitLog                    = "git-log"                      // Git 提交记录请求（手机→电脑）
+	TypeGitLogResponse            = "git-log-response"             // Git 提交记录响应（电脑→手机）
+	TypeGitCommitDetail           = "git-commit-detail"            // Git 提交详情请求（手机→电脑）
+	TypeGitCommitDetailResponse   = "git-commit-detail-response"   // Git 提交详情响应（电脑→手机）
+	TypeListCommands              = "list-commands"                // Slash 命令列表请求（手机→电脑）
+	TypeListCommandsResponse      = "list-commands-response"       // Slash 命令列表响应（电脑→手机）
+	TypeListSkills                = "list-skills"                  // Codex 技能列表请求（手机→电脑）
+	TypeListSkillsResponse        = "list-skills-response"         // Codex 技能列表响应（电脑→手机）
+	TypeListCodexSessions         = "list-codex-sessions"          // Codex 本地会话列表请求（手机→电脑）
+	TypeListCodexSessionsResponse = "list-codex-sessions-response" // Codex 本地会话列表响应（电脑→手机）
+	TypeSessionKeyRequest         = "session-key-request"          // 会话内容密钥请求（手机→电脑）
+	TypeSessionKeyResponse        = "session-key-response"         // 会话内容密钥响应（电脑→手机）
 )
 
 // Claude 会话权限模式
@@ -592,6 +594,34 @@ type ListSkillsResponsePayload struct {
 	RequestID string       `json:"request_id,omitempty"` // 对应的请求 ID
 	Skills    []SkillEntry `json:"skills"`               // 技能列表
 	Error     string       `json:"error,omitempty"`      // 错误信息
+}
+
+// ListCodexSessionsPayload 请求当前主机上的 Codex 本地会话。
+type ListCodexSessionsPayload struct {
+	Cwd        string `json:"cwd,omitempty"`
+	IncludeAll bool   `json:"include_all,omitempty"`
+	Limit      int    `json:"limit,omitempty"`
+	RequestID  string `json:"request_id,omitempty"`
+}
+
+// CodexLocalSessionEntry 是可由 codex resume 恢复的本地 Thread 摘要。
+type CodexLocalSessionEntry struct {
+	RuntimeSessionID string `json:"runtime_session_id"`
+	Cwd              string `json:"cwd,omitempty"`
+	ModelProvider    string `json:"model_provider,omitempty"`
+	CLIVersion       string `json:"cli_version,omitempty"`
+	Source           string `json:"source,omitempty"`
+	Originator       string `json:"originator,omitempty"`
+	SessionTime      int64  `json:"session_time,omitempty"`
+	UpdatedAt        int64  `json:"updated_at,omitempty"`
+	LineCount        int    `json:"line_count,omitempty"`
+}
+
+// ListCodexSessionsResponsePayload 返回当前主机上的 Codex 本地会话。
+type ListCodexSessionsResponsePayload struct {
+	RequestID string                   `json:"request_id,omitempty"`
+	Sessions  []CodexLocalSessionEntry `json:"sessions"`
+	Error     string                   `json:"error,omitempty"`
 }
 
 // ProtectedBlob 通用保护载荷
